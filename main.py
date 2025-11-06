@@ -15,20 +15,6 @@ from fin import FinParams, init_nodes
 from solver import residual_solver, picard_thomas_solver, newton_solver
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="1D Fin Heat Conduction Simulation")
-
-    parser.add_argument(
-        "--solver",
-        type=str,
-        choices=["residual", "picard", "newton"],
-        default="residual",
-        help="Select solver: residual | picard | newton (default: residual)"
-    )
-
-    return parser.parse_args()
-
-
 def main():
     args = parse_args()
     params = FinParams(length=0.1, total_node=50, T0=300.0, Ta=20.0, hc=100.0, D=0.005,
@@ -51,18 +37,44 @@ def main():
     if params.total_node > 10:
         step = params.total_node // 10
         for i in range(0, params.total_node, step):
-            print(f"node {i}, x={x[i]:.6f} m, T={T[i]:.2f} K")
+            print(f"node {i}, x={x[i]:.2f} m, T={T[i]:.2f} K")
 
     plt.plot(x, T, color='blue', linewidth=0.5, marker='o', 
                 markersize=0.5, markerfacecolor='black', markeredgecolor='black')
-    plt.text(0.98, 0.95, f"{params.total_node-1:.0f}nodes, energy thershold={params.error:.2e}",
-         ha='right', va='top',
-         transform=plt.gca().transAxes)
+    
+    ax = plt.gca()
+    info = (
+        f"Threshold: {params.error:.2e}\n"
+        f"Solver: {args.solver}\n"
+        f"Nodes: {params.total_node - 1}"
+    )
+    ax.text(
+        0.98, 0.95, info,
+        ha='right', va='top',
+        transform=ax.transAxes,
+        fontsize=10,
+        bbox=dict(facecolor='white', alpha=0.7, edgecolor='gray')
+    )
+
     plt.xlabel("Position along the fin (m)")
     plt.ylabel("Temperature (K)")
     plt.title("Temperature Distribution")
     plt.grid(True)
     plt.show()
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="1D Fin Heat Conduction Simulation")
+
+    parser.add_argument(
+        "--solver",
+        type=str,
+        choices=["residual", "picard", "newton"],
+        default="residual",
+        help="Select solver: residual(default) | picard | newton"
+    )
+
+    return parser.parse_args()
 
 
 if __name__ == "__main__":

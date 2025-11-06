@@ -34,8 +34,7 @@ def residual_solver(nodes: List[Node],
     dx, P, A = params.geometry()
     step = 0
 
-    while True:
-        step += 1
+    for step in range(1, params.max_step + 1):
         tol_count = 0
         max_energy = 0.0
 
@@ -76,11 +75,11 @@ def residual_solver(nodes: List[Node],
                 max_energy = abs(total_energy)
 
         if params.print_step and step % params.print_step == 0:
-            print(f"[Residual] step {step}, max_energy={max_energy:.6f}, pass={tol_count}/{params.total_node-1}")
+            print(f"[Residual] step {step}, max_energy={max_energy:.6f}")
 
         # Stop either when all nodes pass or reaching max iterations
         if tol_count == (params.total_node - 1) or step >= params.max_step:
-            print(f"[Residual] finish at step {step}")
+            print(f"[Residual] finished at step {step}")
             return step
             
 
@@ -228,7 +227,7 @@ def picard_thomas_solver(nodes: List[Node],
         if max_energy <= params.error:
             for i in range(N):
                 nodes[i].T = T[i]
-            print(f"[Picard-Thomas] finish at step {step}")
+            print(f"[Picard-Thomas] finished at step {step}")
             return step, max_energy
 
     # Not converged within max_step: still write back last iterate
@@ -351,7 +350,7 @@ def newton_solver(nodes: List[Node],
         if max_energy <= params.error:
             for i in range(N):
                 nodes[i].T = T[i]
-            print(f"[Newton] finish at step {step}")
+            print(f"[Newton] finished at step {step}")
             return step, max_energy
 
     # Not converged within max_step

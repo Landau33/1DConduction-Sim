@@ -102,23 +102,20 @@ python main.py --solver newton
 ## Expected Output
 
 ```
-step=5000, max_energy=0.523505, pass=23/50
-step=10000, max_energy=0.176659, pass=17/50
-step=15000, max_energy=0.078757, pass=15/50
-step=20000, max_energy=0.039235, pass=19/50
-step=25000, max_energy=0.020725, pass=26/50
-step=30000, max_energy=0.011394, pass=39/50
-step=35000, max_energy=0.006512, pass=50/50
-
-node 0, x=0.000000 m, T=300.00 K
-node 5, x=0.010000 m, T=241.10 K
-node 10, x=0.020000 m, T=189.50 K
-node 15, x=0.030000 m, T=145.16 K
-node 20, x=0.040000 m, T=108.05 K
-node 25, x=0.050000 m, T=78.09 K
-node 30, x=0.060000 m, T=55.15 K
-node 35, x=0.070000 m, T=38.95 K
-node 40, x=0.080000 m, T=28.88 K
-node 45, x=0.090000 m, T=23.77 K
-node 50, x=0.100000 m, T=22.13 K
+Using Residual Solver...
+[Residual] step 10000, max_energy=0.176659
+[Residual] step 20000, max_energy=0.039235
+[Residual] step 30000, max_energy=0.011394
+[Residual] finished at step 31139
+node 0, x=0.00 m, T=300.00 K
+node 5, x=0.01 m, T=241.05 K
+node 10, x=0.02 m, T=189.37 K
+node 15, x=0.03 m, T=144.92 K
+node 20, x=0.04 m, T=107.66 K
+node 25, x=0.05 m, T=77.51 K
+node 30, x=0.06 m, T=54.36 K
+node 35, x=0.07 m, T=38.02 K
+node 40, x=0.08 m, T=27.99 K
+node 45, x=0.09 m, T=23.07 K
+node 50, x=0.10 m, T=21.57 K
 ```
