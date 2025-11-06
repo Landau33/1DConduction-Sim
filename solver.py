@@ -8,19 +8,19 @@ Author: Yuang
 Email: chris14658@naver.com
 """
 
-from typing import List, Callable, Tuple
+from typing import List, Tuple
 from fin import Node, FinParams
 
 
 def residual_solver(nodes: List[Node],
                     params: FinParams) -> int:
     """
-    Residual-balancing point-wise updater (your original method).
+    Residual-balancing point-wise updater.
     Math model (steady 1D fin with convection along the surface):
 
         d/dx( k(T) * A * dT/dx ) - h * P * (T - Ta) = 0
 
-    Finite-volume / control-volume balance at node i (i = 1..N-2):
+    Control-volume balance at node i (i = 1..N-2):
         Q_left  + Q_right + Q_conv = 0
 
     where
@@ -28,16 +28,8 @@ def residual_solver(nodes: List[Node],
         Q_right = k_{i+1/2} * A/dx * (T_{i+1} - T_i)
         Q_conv  = h * P * dx * (Ta - T_i)
 
-    Boundary:
-        i = 0: Dirichlet, T(0) = T0
-        i = N-1: insulated tip approximation (no right conduction term),
-                 still includes surface convection on the last control volume.
-
     This routine updates T_i in-place by:
         T_i^{new} = T_i + delta * (Q_left + Q_right + Q_conv)
-
-    and clamps T within [Ta, T0] for stability.
-    Convergence is checked by residual magnitude at each node.
     """
     dx, P, A = params.geometry()
     step = 0
@@ -74,7 +66,6 @@ def residual_solver(nodes: List[Node],
             # update temperature of node i
             Ti_new = Ti + params.delta * total_energy
 
-            # Clamp temperature to the physical/BC bounds
             if Ti_new > params.T0: Ti_new = params.T0
             if Ti_new < params.Ta: Ti_new = params.Ta
             nodes[i].T = Ti_new
@@ -85,15 +76,54 @@ def residual_solver(nodes: List[Node],
                 max_energy = abs(total_energy)
 
         if params.print_step and step % params.print_step == 0:
-            print(f"[Residual] step={step}, max_energy={max_energy:.6f}, pass={tol_count}/{params.total_node-1}")
+            print(f"[Residual] step {step}, max_energy={max_energy:.6f}, pass={tol_count}/{params.total_node-1}")
 
         # Stop either when all nodes pass or reaching max iterations
         if tol_count == (params.total_node - 1) or step >= params.max_step:
-            print(f"[Residual] finish at step={step}")
+            print(f"[Residual] finish at step {step}")
             return step
             
 
 def thomas_tridiagonal(a, b, c, d):
+    """
+    Solve a tridiagonal linear system A x = d using the Thomas algorithm.
+    
+    The matrix A has the form:
+    
+        [ b0  c0   0   0   ...        ]
+        [ a1  b1  c1   0   ...        ]
+        [  0  a2  b2  c2   ...        ]
+        [          ...                ]
+        [              a_{n-1}  b_{n-1} ]
+    
+    Parameters
+    ----------
+    a : Sub-diagonal coefficients (a[0] unused; a[i] multiplies x[i-1])
+    b : Main diagonal coefficients (must be non-zero)
+    c : Super-diagonal coefficients (c[n-1] unused; c[i] multiplies x[i+1])
+    d : Right-hand side vector
+    
+    Returns
+    -------
+    x : Solution vector satisfying A x = d
+    
+    Algorithm
+    ---------
+    Forward elimination:
+        Modify coefficients to eliminate sub-diagonal entries,
+        storing:
+            cp[i] = modified super-diagonal (c')
+            dp[i] = modified RHS (d')
+        so the system becomes upper triangular.
+
+    Back substitution:
+        Solve for x[n-1], then x[n-2] ... x[0].
+
+    Numerical Notes
+    ---------------
+    - This algorithm runs in O(n) time.
+    - Assumes A is diagonally dominant or nonsingular.
+    """
     n = len(b)
     cp = [0.0]*n
     dp = [0.0]*n
@@ -137,7 +167,7 @@ def picard_thomas_solver(nodes: List[Node],
               d_{N-1} = - h * P * dx * Ta
 
     Convergence check:
-        || T^{(n+1)} - T^{(n)} ||_inf <= tol
+        || T^{(n+1)} - T^{(n)} ||_inf <= error
     """
     N = params.total_node
     dx, P, A = params.geometry()
@@ -146,12 +176,12 @@ def picard_thomas_solver(nodes: List[Node],
 
     for step in range(1, params.max_step + 1):
         # 1) Freeze k at interfaces using current T
-        k_half_left  = [0.0] * N    # used for i>=1   (left faces)
-        k_half_right = [0.0] * N    # used for i<=N-2 (right faces)
+        k_left  = [0.0] * N    # used for i>=1   (left faces)
+        k_right = [0.0] * N    # used for i<=N-2 (right faces)
         for i in range(1, N):
-            k_half_left[i] = params.kt_slope * (0.5 * (T[i-1] + T[i])) + params.kt_bias
+            k_left[i] = params.kt_slope * (0.5 * (T[i-1] + T[i])) + params.kt_bias
         for i in range(0, N-1):
-            k_half_right[i] = params.kt_slope * (0.5 * (T[i] + T[i+1])) + params.kt_bias
+            k_right[i] = params.kt_slope * (0.5 * (T[i] + T[i+1])) + params.kt_bias
 
         # 2) Assemble tridiagonal system A*T_new = d
         a = [0.0] * N
@@ -169,13 +199,13 @@ def picard_thomas_solver(nodes: List[Node],
 
         # Interior nodes
         for i in range(1, N-1):
-            a[i] = k_half_left[i]  * A / dx
-            c[i] = k_half_right[i] * A / dx
+            a[i] = k_left[i]  * A / dx
+            c[i] = k_right[i] * A / dx
             b[i] = -(a[i] + c[i]) - hPdx
             d[i] = -hPdx * params.Ta
 
         # Tip control volume (no right conduction)
-        a[N-1] = k_half_left[N-1] * A / dx
+        a[N-1] = k_left[N-1] * A / dx
         b[N-1] = -a[N-1] - hPdx
         c[N-1] = 0.0
         d[N-1] = -hPdx * params.Ta
@@ -184,9 +214,8 @@ def picard_thomas_solver(nodes: List[Node],
         T_new = thomas_tridiagonal(a, b, c, d)
 
         # 4) Convergence check: infinity norm of temperature change
-        diff_inf = max(abs(T_new[i] - T[i]) for i in range(N))
+        max_energy = max(abs(T_new[i] - T[i]) for i in range(N))
 
-        # Optional clamping for stability
         for i in range(1, N):  # i=0 is fixed
             if T_new[i] > params.T0: T_new[i] = params.T0
             if T_new[i] < params.Ta: T_new[i] = params.Ta
@@ -194,18 +223,18 @@ def picard_thomas_solver(nodes: List[Node],
         T = T_new
 
         if params.print_step and step % params.print_step == 0:
-            print(f"[Picard] step={step}, |ΔT|_inf={diff_inf:.6e}")
+            print(f"[Picard] step {step}, max_energy={max_energy:.6e}")
 
-        if diff_inf <= params.error:
+        if max_energy <= params.error:
             for i in range(N):
                 nodes[i].T = T[i]
-            print(f"[Picard-Thomas] finish at step={step}")
-            return step, diff_inf
+            print(f"[Picard-Thomas] finish at step {step}")
+            return step, max_energy
 
     # Not converged within max_step: still write back last iterate
     for i in range(N):
         nodes[i].T = T[i]
-    return params.max_step, diff_inf
+    return params.max_step, max_energy
 
 
 def newton_solver(nodes: List[Node],
@@ -228,22 +257,20 @@ def newton_solver(nodes: List[Node],
 
     Jacobian entries (1D three-diagonal) for interior nodes:
       Let m = dk/dT be constant (two-point linear k(T) makes m constant).
-      Define L-face: TL = (T_{i-1}+T_i)/2, kL = k(TL)
-              R-face: TR = (T_i+T_{i+1})/2, kR = k(TR)
+      Define L-face: TL = (T_{i-1}+T_i)/2, k_left = k(TL)
+              R-face: TR = (T_i+T_{i+1})/2, k_right = k(TR)
 
-      dR_i/dT_{i-1}  =  (A/dx) * [ kL + (m/2)*(T_{i-1} - T_i) ]
+      dR_i/dT_{i-1}  =  (A/dx) * [ k_left + (m/2)*(T_{i-1} - T_i) ]
 
-      dR_i/dT_i      =  (A/dx) * [ -kL + (m/2)*(T_i - T_{i-1})
-                                   -kR - (m/2)*(T_{i+1} - T_i) ]
+      dR_i/dT_i      =  (A/dx) * [ -k_left + (m/2)*(T_i - T_{i-1})
+                                   -k_right - (m/2)*(T_{i+1} - T_i) ]
                         - h * P * dx
 
-      dR_i/dT_{i+1}  =  (A/dx) * [ kR + (m/2)*(T_{i+1} - T_i) ]
+      dR_i/dT_{i+1}  =  (A/dx) * [ k_right + (m/2)*(T_{i+1} - T_i) ]
 
     Boundary:
         i = 0: Dirichlet  => R_0 = T_0 - T0,  J_00 = 1
         i = N-1: tip uses the same insulated approximation (no right conduction term).
-
-    We keep clamping T into [Ta, T0] after each Newton step for robustness.
     """
 
     N = params.total_node
@@ -268,32 +295,32 @@ def newton_solver(nodes: List[Node],
             Ti  = T[i]
             Tm1 = T[i-1]
 
-            # Left face: kL
-            kL = params.kt_slope * 0.5 * (Tm1 + Ti) + params.kt_bias
+            # Left face: k_left
+            k_left = params.kt_slope * 0.5 * (Tm1 + Ti) + params.kt_bias
 
             # Left contribution to residual
-            QL = (kL * A / dx) * (Tm1 - Ti)
+            Q_left = (k_left * A / dx) * (Tm1 - Ti)
 
             # Left derivatives (from chain rule on k(TL) with dTL/dT = 1/2)
-            dRi_im1 = (A/dx) * (kL + 0.5 * params.kt_slope * (Tm1 - Ti))
-            dRi_i   = (A/dx) * (-kL - 0.5 * params.kt_slope * (Tm1 - T_i)) if False else (A/dx) * (-kL + 0.5 * params.kt_slope * (Ti - Tm1))
+            dRi_im1 = (A/dx) * (k_left + 0.5 * params.kt_slope * (Tm1 - Ti))
+            dRi_i   = (A/dx) * (-k_left - 0.5 * params.kt_slope * (Tm1 - T_i)) if False else (A/dx) * (-k_left + 0.5 * params.kt_slope * (Ti - Tm1))
             # (The latter form is algebraically identical; we keep the '+' variant for readability.)
             dRi_ip1 = 0.0
 
             # Right face only if not at the tip
-            QR = 0.0
+            Q_right = 0.0
             if i <= N - 2:
                 Tp1 = T[i+1]
-                kR  = params.kt_slope * 0.5 * (Ti + Tp1) + params.kt_bias
-                QR  = (kR * A / dx) * (Tp1 - Ti)
+                k_right  = params.kt_slope * 0.5 * (Ti + Tp1) + params.kt_bias
+                Q_right  = (k_right * A / dx) * (Tp1 - Ti)
 
                 # Right derivatives
-                dRi_ip1 += (A/dx) * (kR + 0.5 * params.kt_slope * (Tp1 - Ti))
-                dRi_i   += (A/dx) * (-kR - 0.5 * params.kt_slope * (Tp1 - Ti))
+                dRi_ip1 += (A/dx) * (k_right + 0.5 * params.kt_slope * (Tp1 - Ti))
+                dRi_i   += (A/dx) * (-k_right - 0.5 * params.kt_slope * (Tp1 - Ti))
 
             # Convection at node i: hPdx*(Ta - Ti)
             Qconv = hPdx * (params.Ta - Ti)
-            R[i]  = QL + QR + Qconv
+            R[i]  = Q_left + Q_right + Qconv
 
             # Derivative of convection wrt Ti: -hPdx
             dRi_i += -hPdx
@@ -315,19 +342,19 @@ def newton_solver(nodes: List[Node],
             if T_new[i] > params.T0: T_new[i] = params.T0
             if T_new[i] < params.Ta: T_new[i] = params.Ta
 
-        diff_inf = max(abs(T_new[i] - T[i]) for i in range(N))
+        max_energy = max(abs(T_new[i] - T[i]) for i in range(N))
         T = T_new
 
         if params.print_step and step % params.print_step == 0:
-            print(f"[Newton] step={step}, |ΔT|_inf={diff_inf:.6e}")
+            print(f"[Newton] step {step}, max_energy={max_energy:.6e}")
 
-        if diff_inf <= params.error:
+        if max_energy <= params.error:
             for i in range(N):
                 nodes[i].T = T[i]
-            print(f"[Newton] finish at step={step}")
-            return step, diff_inf
+            print(f"[Newton] finish at step {step}")
+            return step, max_energy
 
     # Not converged within max_step
     for i in range(N):
         nodes[i].T = T[i]
-    return params.max_step, diff_inf
+    return params.max_step, max_energy

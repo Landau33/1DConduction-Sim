@@ -35,8 +35,8 @@ class FinParams:
     delta: float = 3e-2         # Convergence factor
     max_step: int = 100_000     # Maximum iteration steps
     print_step: int = 10000     # Print interval
-    kt_slope: float = (112.0 - 10.3) / (300.0 - 20.0)  # Slope dk/dT for thermal conductivity
-    kt_bias: float = 10.3 - kt_slope * 20.0
+    kt_slope: float = (112.0 - 10.3) / (300.0 - 20.0)   # Slope dk/dT for thermal conductivity
+    kt_bias: float = 10.3 - kt_slope * 20.0             # Bias for thermal conductivity
 
     def __post_init__(self):
         self.total_node += 1
@@ -46,9 +46,10 @@ class FinParams:
         Calculate dx, cross-sectional perimeter, cross-sectional area
         """
         dx = self.length / (self.total_node - 1)
-        perimeter  = pi * self.D
-        area  = pi * (self.D**2) / 4.0
-        return dx, perimeter, area
+        P  = pi * self.D
+        A  = pi * (self.D**2) / 4.0
+        return dx, P, A
+
 
 def init_nodes(p: FinParams) -> List[Node]:
     """

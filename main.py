@@ -31,36 +31,31 @@ def parse_args():
 
 def main():
     args = parse_args()
-    p = FinParams(length=0.1, total_node=5000, T0=300.0, Ta=20.0, hc=100.0, D=0.005,
-                  error=1e-2, delta=3e-2, max_step=100000, print_step=0)
-    nodes = init_nodes(p)
+    params = FinParams(length=0.1, total_node=50, T0=300.0, Ta=20.0, hc=100.0, D=0.005,
+                  error=1e-2, delta=3e-2, max_step=100000, print_step=10000)
+    nodes = init_nodes(params)
 
-    """
-    Choose one solver to run the simulation
-    1. Residual solver (slowest, easiest)
-    2. Picard-Thomas solver (moderate speed, moderate complexity)
-    3. Newton solver (fastest, most complex)
-    """
     if args.solver == "residual":
         print("Using Residual Solver...")
-        residual_solver(nodes, p)
+        residual_solver(nodes, params)
     elif args.solver == "picard":
         print("Using Picard-Thomas Solver...")
-        picard_thomas_solver(nodes, p)
+        picard_thomas_solver(nodes, params)
     elif args.solver == "newton":
         print("Using Newton Solver...")
-        newton_solver(nodes, p)
+        newton_solver(nodes, params)
     
     x = np.array([node.x for node in nodes])
     T = np.array([node.T for node in nodes])
 
-    step = p.total_node // 10
-    for i in range(0, p.total_node, step):
-        print(f"node {i}, x={x[i]:.6f} m, T={T[i]:.2f} K")
+    if params.total_node > 10:
+        step = params.total_node // 10
+        for i in range(0, params.total_node, step):
+            print(f"node {i}, x={x[i]:.6f} m, T={T[i]:.2f} K")
 
     plt.plot(x, T, color='blue', linewidth=0.5, marker='o', 
                 markersize=0.5, markerfacecolor='black', markeredgecolor='black')
-    plt.text(0.98, 0.95, f"{p.total_node-1:.0f}nodes, energy error={p.error:.2e}",
+    plt.text(0.98, 0.95, f"{params.total_node-1:.0f}nodes, energy thershold={params.error:.2e}",
          ha='right', va='top',
          transform=plt.gca().transAxes)
     plt.xlabel("Position along the fin (m)")

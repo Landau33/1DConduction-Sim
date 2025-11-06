@@ -69,26 +69,36 @@ FinParams(
     delta=3e-2,          # Convergence factor
     max_step=100000,     # Maximum iteration steps
     print_step=10000     # Print interval
-)
 ```
-The temperature-dependent thermal conductivity is defined inside the function:
+The temperature-dependent thermal conductivity is defined in `FinParams` class:
 
 ```python
-def thermal_conductivity(T: float) -> float:
-    return (1017.0/2800.0) * T + (85.0/28.0)
+    kt_slope=(112.0-10.3)/(300.0-20.0)  # Slope dk/dT for thermal conductivity
+    kt_bias=10.3-kt_slope*20.0          # Bias for thermal conductivity
+)           
 ```
 
 ---
 
 ## Usage
 
+The program supports three solvers: `residual`, `picard`, and `newton` (default: residual).
+
 Run the simulation:
 
 ```bash
-python main.py
+python main.py --solver <solver>
 ```
----
 
+Examples:
+
+```bash
+python main.py --solver residual
+python main.py --solver picard
+python main.py --solver newton
+```
+
+---
 ## Expected Output
 
 ```
