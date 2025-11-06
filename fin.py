@@ -12,14 +12,14 @@ class Node:
 @dataclass
 class FinParams:
     """鳍片物理与数值参数"""
-    length: float = 0.1         # m, 鳍片长度
-    total_node: int = 50            # 节点数
-    T0: float = 300.0      # K, 基部温度 (x=0) Dirichlet
-    Ta: float = 20.0       # K, 环境温度
-    hc: float = 100.0      # W/m^2-K, 对流换热系数
-    D: float = 0.005       # m, 直径
-    error: float = 1e-2      # 能量残差容差
-    delta: float = 1e-2    # 残差下降步长
+    length: float = 0.1         # m, fin长度
+    total_node: int = 50        # 节点数
+    T0: float = 300.0           # K, 基部温度 (x=0) Dirichlet
+    Ta: float = 20.0            # K, 环境温度
+    hc: float = 100.0           # W/m^2-K, 对流换热系数
+    D: float = 0.005            # m, 直径
+    error: float = 1e-2         # 能量残差容差
+    delta: float = 1e-2         # 残差下降步长
     max_step: int = 100_000
     print_step: int = 2000
 
@@ -32,16 +32,18 @@ class FinParams:
         area  = pi * (self.D**2) / 4.0
         return dx, perimeter, area
 
-def default_k_of_T(T: float) -> float:
+def thermal_conductivity(T: float) -> float:
     return (1017.0/2800.0)*T + (85.0/28.0)
 
-def build_uniform_nodes(p: FinParams) -> List[Node]:
-    """均匀网格 + 线性初值（比全0稳）"""
+def init_nodes(p: FinParams) -> List[Node]:
+    """init nodes with boundary condition at x=0"""
     dx, _, _ = p.geometry()
     nodes: List[Node] = []
+    
     for i in range(p.total_node):
         x = i * dx
-        T = p.T0 + (p.Ta - p.T0) * (x / p.length)
+        T = p.Ta     # 初始温度全部设为Ta
         nodes.append(Node(idx=i, x=x, T=T))
-    nodes[0].T = p.T0
+    
+    nodes[0].T = p.T0   # 保留边界条件：基部温度固定为T0
     return nodes
