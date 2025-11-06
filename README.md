@@ -1,10 +1,12 @@
 # 1D Fin Steady-State Heat Conduction Simulation
 
-This project simulates the **steady-state temperature distribution on a 1D circular fin** with convection at its surface.  
-The fin has temperature-dependent thermal conductivity \(k(T)\), using **two-point linear interpolation**.
+***This project was developed as an MA6801 course assignment at NTU for Fall 2025 (Semester 1).***
 
-This is a simple and clear numerical model suitable for thermal engineering coursework, numerical methods practice, and fin performance analysis.
+This project simulates the *steady-state temperature distribution on a 1D circular fin* with convection at its surface.  
+The fin has temperature-dependent thermal conductivity `k(T)`, using two-point linear interpolation.
+
 ![Temperature Distribution](question.png)
+
 ---
 
 ## Mathematical Model

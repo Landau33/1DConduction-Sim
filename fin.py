@@ -4,7 +4,7 @@ fin.py
 翅片参数与节点初始化
 Fin parameters and node initialization
 
-Author: Tu Yuang
+Author: Yuang
 Email: chris14658@naver.com
 '''
 

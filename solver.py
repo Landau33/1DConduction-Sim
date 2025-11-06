@@ -4,7 +4,7 @@ solver.py
 能量平衡迭代求解器
 Iterative energy-balance solver for the fin temperature field
 
-Author: Tu Yuang
+Author: Yuang
 Email: chris14658@naver.com
 """
 

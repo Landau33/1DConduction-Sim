@@ -4,7 +4,7 @@ main.py
 启动仿真并绘制温度分布
 Run the simulation and generate the temperature distribution plot
 
-Author: Tu Yuang
+Author: Yuang
 Email: chris14658@naver.com
 """
 
