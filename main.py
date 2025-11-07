@@ -11,16 +11,18 @@ Email: chris14658@naver.com
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import time
 from fin import FinParams, init_nodes
 from solver import residual_solver, picard_thomas_solver, newton_solver
 
 
 def main():
     args = parse_args()
-    params = FinParams(length=0.1, total_node=50, T0=300.0, Ta=20.0, hc=100.0, D=0.005,
+    params = FinParams(length=0.1, total_node=50000, T0=300.0, Ta=20.0, hc=100.0, D=0.005,
                   error=1e-2, delta=3e-2, max_step=100000, print_step=10000)
     nodes = init_nodes(params)
 
+    start = time.perf_counter()
     if args.solver == "residual":
         print("Using Residual Solver...")
         residual_solver(nodes, params)
@@ -30,7 +32,9 @@ def main():
     elif args.solver == "newton":
         print("Using Newton Solver...")
         newton_solver(nodes, params)
-    
+    end = time.perf_counter()
+    print(f"Solver time: {end - start:.4f} s")
+
     x = np.array([node.x for node in nodes])
     T = np.array([node.T for node in nodes])
 
